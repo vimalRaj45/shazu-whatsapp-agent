@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: shazusoft-whatsapp-agent
+    runtime: docker
+    plan: starter
+    region: singapore
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: DEFAULT_TENANT_ID
+        value: shazusoft
+      - key: PYTHONIOENCODING
+        value: utf-8
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: whatsapp-session-data
+      mountPath: /app/gateway/auth_info
+      sizeGB: 1

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shazu Soft - WhatsApp AI Business Platform</title>
+  
+  <!-- Tailwind CSS via official CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Bootstrap Icons CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .pulse-dot {
+      animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen antialiased flex flex-col font-sans">
+
+  <!-- Top Sticky Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white shadow-sm shadow-brand-500/20">
+          <i class="bi bi-whatsapp text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Shazu Soft AI Agent</h1>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">SaaS v2.0</span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">Multi-Tenant Business Automation Platform</p>
+        </div>
+      </div>
+
+      <!-- Live Badges & Disconnect Action -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Neon PostgreSQL Live Badge -->
+        <div class="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold">
+          <i class="bi bi-database-fill-check text-blue-600"></i>
+          <span>Neon Cloud DB</span>
+        </div>
+
+        <!-- Connected WhatsApp Phone Badge -->
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
+          <span class="hidden sm:inline">Linked:</span>
+          <span>+<span id="headerPhone">{{DISPLAY_PHONE}}</span></span>
+        </div>
+
+        <!-- Disconnect Button -->
+        <button id="btnDisconnect" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-rose-500/20" title="Unlink WhatsApp session and scan new QR">
+          <i class="bi bi-power text-rose-600"></i>
+          <span class="hidden sm:inline">Disconnect</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- KPI Metric Cards Grid -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Stat 1: Total Leads in Neon DB -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Cloud Leads</span>
+          <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <i class="bi bi-person-lines-fill"></i>
+          </div>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="statTotalLeads" class="text-2xl sm:text-3xl font-extrabold text-slate-900">0</span>
+          <span class="text-xs font-semibold text-emerald-600"><i class="bi bi-arrow-up-right"></i> Neon DB</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Stored in Neon PostgreSQL</p>
+      </div>
+
+      <!-- Stat 2: Total Messages Logged -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Messages Processed</span>
+          <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i class="bi bi-chat-dots-fill"></i>
+          </div>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="statTotalMessages" class="text-2xl sm:text-3xl font-extrabold text-slate-900">0</span>
+          <span class="text-xs font-semibold text-blue-600">turns</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Multi-turn AI conversations</p>
+      </div>
+
+      <!-- Stat 3: Avg Response Time -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Avg Latency</span>
+          <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+            <i class="bi bi-lightning-charge-fill"></i>
+          </div>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl sm:text-3xl font-extrabold text-slate-900">1.8s</span>
+          <span class="text-xs font-semibold text-emerald-600">Fast</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Mistral 7B & Baileys direct</p>
+      </div>
+
+      <!-- Stat 4: Active Instances -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Gateway Status</span>
+          <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+            <i class="bi bi-cpu-fill"></i>
+          </div>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl sm:text-3xl font-extrabold text-emerald-600">Online</span>
+          <span class="text-xs font-semibold text-slate-500">24/7</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Zero 3rd-party fees (₹0/mo)</p>
+      </div>
+    </section>
+
+    <!-- Tab Navigation Navigation -->
+    <div class="flex border-b border-slate-200 gap-2 sm:gap-6 text-sm font-semibold">
+      <button onclick="switchTab('simulator')" id="tabBtnSimulator" class="pb-3 px-1 border-b-2 border-brand-600 text-brand-600 flex items-center gap-2 transition-colors">
+        <i class="bi bi-terminal-fill"></i>
+        <span>Live Simulator & Test</span>
+      </button>
+      <button onclick="switchTab('leads')" id="tabBtnLeads" class="pb-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-900 flex items-center gap-2 transition-colors">
+        <i class="bi bi-database-fill"></i>
+        <span>Cloud CRM Leads (Neon DB)</span>
+        <span id="leadsBadgeCount" class="text-xs bg-slate-200 px-1.5 py-0.2 rounded-full font-bold">0</span>
+      </button>
+      <button onclick="switchTab('logs')" id="tabBtnLogs" class="pb-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-900 flex items-center gap-2 transition-colors">
+        <i class="bi bi-activity"></i>
+        <span>Live Traffic Logs</span>
+      </button>
+      <button onclick="switchTab('guide')" id="tabBtnGuide" class="pb-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-900 flex items-center gap-2 transition-colors">
+        <i class="bi bi-qr-code-scan"></i>
+        <span>Testing & Guide</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: Live Simulator & Testing -->
+    <div id="tabContentSimulator" class="space-y-6">
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i class="bi bi-robot text-brand-600"></i>
+              <span>Interactive AI Brain Simulator</span>
+            </h2>
+            <p class="text-xs text-slate-500">Test how the Shazu Soft Mistral agent handles customer questions before sending on WhatsApp.</p>
+          </div>
+          <span class="text-xs text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1 rounded-full font-semibold self-start sm:self-auto">
+            Bilingual: Tamil, Tanglish & English
+          </span>
+        </div>
+
+        <!-- Preset Chips -->
+        <div class="flex flex-wrap gap-2 pt-1">
+          <span class="text-xs font-semibold text-slate-400 self-center">Try Samples:</span>
+          <button onclick="setSample('Hi, I need an e-commerce website for my retail shop in Salem')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors">🛒 E-Commerce Web</button>
+          <button onclick="setSample('Vanakkam, enaku oru clinic appointment app venum')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors">🏥 Clinic App (Tanglish)</button>
+          <button onclick="setSample('How much do you charge for custom SaaS software development?')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors">💰 Pricing Inquiry</button>
+          <button onclick="setSample('#stop')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors">⏸️ Human Takeover (#stop)</button>
+        </div>
+
+        <!-- Input Box -->
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1">
+            <input type="text" id="testInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-500/10 transition-all" placeholder="Type customer message here..." value="Hi, I need an e-commerce platform for my store in Salem" />
+          </div>
+          <button id="btnSendTest" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-sm shadow-brand-600/20 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50">
+            <i class="bi bi-send-fill text-xs"></i>
+            <span>Send Test</span>
+          </button>
+        </div>
+
+        <!-- Output Box -->
+        <div id="testOutput" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-800 space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500 border-b border-slate-200 pb-2">
+            <span class="flex items-center gap-1.5 text-brand-700"><i class="bi bi-check-circle-fill text-brand-600"></i> AI Agent Response</span>
+            <span id="testTimeTaken" class="text-slate-400 font-normal">Generated in ~1.8s</span>
+          </div>
+          <div id="testOutputContent" class="whitespace-pre-wrap leading-relaxed"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Cloud CRM Leads (Neon DB) -->
+    <div id="tabContentLeads" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i class="bi bi-database-fill-gear text-blue-600"></i>
+              <span>Live Inbound Leads in Neon Cloud PostgreSQL</span>
+            </h2>
+            <p class="text-xs text-slate-500">Every WhatsApp user who messages your agent is qualified & recorded here automatically.</p>
+          </div>
+          <button onclick="fetchLeads()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Refresh Table</span>
+          </button>
+        </div>
+
+        <!-- Table Container -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+              <tr>
+                <th class="py-3 px-4">Contact</th>
+                <th class="py-3 px-4">Phone</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4">Lead Score</th>
+                <th class="py-3 px-4">Latest WhatsApp Inquiry</th>
+                <th class="py-3 px-4">Last Active</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody" class="divide-y divide-slate-100">
+              <tr>
+                <td colspan="6" class="py-8 text-center text-slate-400">Loading leads from Neon PostgreSQL...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Real-Time Traffic Logs -->
+    <div id="tabContentLogs" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
+            <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Live WhatsApp Traffic Stream</span>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">Auto-updates every 2s</span>
+        </div>
+        <div id="logsBox" class="p-4 bg-slate-900 font-mono text-xs text-slate-100 h-96 overflow-y-auto space-y-2">
+          <div class="text-slate-500 text-center py-10">Listening for WhatsApp message events...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Testing & Multi-Device Pairing Guide -->
+    <div id="tabContentGuide" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Option 1 Card -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
+            <i class="bi bi-phone-fill"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900">Method 1: Test From Another Phone</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Take any friend’s or colleague’s phone and send a WhatsApp message to your connected bot:
+          </p>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <span class="text-xs text-slate-500 block">WhatsApp Number</span>
+            <span class="text-base font-extrabold text-emerald-700">+<span class="ph-placeholder">{{DISPLAY_PHONE}}</span></span>
+          </div>
+          <p class="text-xs text-slate-500">
+            <strong>Sample text:</strong> <em>"Hi, what software do you build?"</em> or <em>"Vanakkam, enaku oru billing software venum"</em>.
+          </p>
+        </div>
+
+        <!-- Option 2 Card -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold">
+            <i class="bi bi-chat-left-dots-fill"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900">Method 2: Self-Chat on Your Phone</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            You can test directly from the phone that is paired:
+          </p>
+          <ol class="list-decimal list-inside text-xs text-slate-600 space-y-1.5 pl-1">
+            <li>Open WhatsApp on your phone (+{{DISPLAY_PHONE}}).</li>
+            <li>Search for <strong>"Message yourself"</strong>.</li>
+            <li>Send any message (e.g. <em>"Hi, need clinic software"</em>).</li>
+            <li>The agent will automatically reply directly to your chat!</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    const userPhone = "{{DISPLAY_PHONE}}";
+
+    // Tab Switcher
+    function switchTab(tab) {
+      const tabs = ['simulator', 'leads', 'logs', 'guide'];
+      tabs.forEach(t => {
+        const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+        const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (t === tab) {
+          btn.className = 'pb-3 px-1 border-b-2 border-brand-600 text-brand-600 flex items-center gap-2 transition-colors';
+          content.classList.remove('hidden');
+        } else {
+          btn.className = 'pb-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-900 flex items-center gap-2 transition-colors';
+          content.classList.add('hidden');
+        }
+      });
+      if (tab === 'leads') fetchLeads();
+      if (tab === 'logs') fetchLogs();
+    }
+
+    function setSample(text) {
+      const input = document.getElementById('testInput');
+      input.value = text;
+      sendWebTest();
+    }
+
+    // Web Simulator API Call
+    async function sendWebTest() {
+      const input = document.getElementById('testInput');
+      const output = document.getElementById('testOutput');
+      const outputContent = document.getElementById('testOutputContent');
+      const btn = document.getElementById('btnSendTest');
+      const timeTaken = document.getElementById('testTimeTaken');
+      const text = input.value.trim();
+      if (!text) return;
+
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Processing...';
+      btn.disabled = true;
+      output.classList.remove('hidden');
+      outputContent.innerText = 'Mistral AI is formulating tailored consulting response...';
+      const startTime = Date.now();
+
+      try {
+        const res = await fetch('/api/test-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, name: 'Web Simulator User', phone: userPhone })
+        });
+        const data = await res.json();
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        timeTaken.innerText = `Generated in ${duration}s`;
+        outputContent.innerText = data.reply || 'No response generated.';
+      } catch (err) {
+        outputContent.innerText = 'Error: ' + err.message;
+      } finally {
+        btn.innerHTML = '<i class="bi bi-send-fill text-xs"></i><span>Send Test</span>';
+        btn.disabled = false;
+        fetchStats();
+        fetchLeads();
+      }
+    }
+
+    // Fetch Stats from Neon PostgreSQL
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        document.getElementById('statTotalLeads').innerText = data.total_leads || 0;
+        document.getElementById('statTotalMessages').innerText = data.total_messages || 0;
+        const badge = document.getElementById('leadsBadgeCount');
+        if (badge) badge.innerText = data.total_leads || 0;
+      } catch (e) {}
+    }
+
+    // Fetch Leads from Neon PostgreSQL
+    async function fetchLeads() {
+      try {
+        const res = await fetch('/api/leads');
+        const leads = await res.json();
+        const tbody = document.getElementById('leadsTableBody');
+        
+        if (leads && leads.length > 0) {
+          tbody.innerHTML = leads.map(l => {
+            const scoreColor = l.score >= 85 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+            return `
+              <tr class="hover:bg-slate-50/80 transition-colors">
+                <td class="py-3 px-4 font-bold text-slate-900">${escapeHtml(l.name || 'Anonymous')}</td>
+                <td class="py-3 px-4 font-mono text-slate-600">${escapeHtml(l.phone)}</td>
+                <td class="py-3 px-4">
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ${escapeHtml(l.status || 'Active')}
+                  </span>
+                </td>
+                <td class="py-3 px-4">
+                  <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold border ${scoreColor}">${l.score}/100</span>
+                </td>
+                <td class="py-3 px-4 max-w-xs truncate text-slate-700" title="${escapeHtml(l.whatsapp_last_inquiry || '')}">
+                  ${escapeHtml(l.whatsapp_last_inquiry || '-')}
+                </td>
+                <td class="py-3 px-4 text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                  ${escapeHtml(l.updated_at_formatted || 'Just now')}
+                </td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No leads recorded in Neon DB yet. Send a WhatsApp message to populate!</td></tr>';
+        }
+      } catch (e) {
+        document.getElementById('leadsTableBody').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-rose-500">Failed to fetch leads from database.</td></tr>';
+      }
+    }
+
+    // Fetch Live Traffic Logs
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const data = await res.json();
+        const box = document.getElementById('logsBox');
+        if (data.logs && data.logs.length > 0) {
+          box.innerHTML = data.logs.slice().reverse().map(l => {
+            let color = 'text-slate-400';
+            if (l.type === 'INBOUND') color = 'text-sky-400 font-bold';
+            if (l.type === 'AI-REPLY' || l.type === 'DELIVERED') color = 'text-emerald-400 font-bold';
+            if (l.type === 'SELF-TEST') color = 'text-amber-300 font-bold';
+            if (l.type === 'HUMAN') color = 'text-purple-300 font-bold';
+            if (l.type === 'ERROR') color = 'text-rose-400 font-bold';
+
+            return `
+              <div class="flex items-start gap-2 py-0.5 border-b border-slate-800/50">
+                <span class="text-slate-500 min-w-[65px] select-none">${escapeHtml(l.time)}</span>
+                <span class="${color} min-w-[90px] select-none">[${escapeHtml(l.type)}]</span>
+                <span class="text-slate-200 break-all flex-1">${escapeHtml(l.message)}</span>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (e) {}
+    }
+
+    // Disconnect Action
+    async function disconnectSession() {
+      if (!confirm("Are you sure you want to disconnect this WhatsApp account?\n\nThis will unlink the phone number and generate a new QR code.")) {
+        return;
+      }
+      const btn = document.getElementById('btnDisconnect');
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Unlinking...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/disconnect', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'WhatsApp session disconnected.');
+        setTimeout(() => location.reload(), 1500);
+      } catch (err) {
+        alert('Error disconnecting: ' + err.message);
+        btn.innerHTML = '<i class="bi bi-power text-rose-600"></i><span>Disconnect</span>';
+        btn.disabled = false;
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Initialization on Page Load
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btnSendTest')?.addEventListener('click', sendWebTest);
+      document.getElementById('btnDisconnect')?.addEventListener('click', disconnectSession);
+      document.getElementById('testInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          sendWebTest();
+        }
+      });
+
+      fetchStats();
+      fetchLeads();
+      fetchLogs();
+      setInterval(fetchStats, 5000);
+      setInterval(fetchLogs, 2000);
+    });
+  </script>
+</body>
+</html>

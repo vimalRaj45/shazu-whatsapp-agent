@@ -1,0 +1,28 @@
+# =======================================================
+# Secrets & Credentials (NEVER COMMIT)
+# =======================================================
+.env
+.env.local
+.env.*.local
+auth_info/
+gateway/auth_info/
+creds.json
+session-*.json
+pre-key-*.json
+app-state-*.json
+
+# Dependencies
+node_modules/
+gateway/node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+*.log
+.system_generated/
