@@ -268,16 +268,29 @@ app.get('/api/logs', (req, res) => {
   });
 });
 
-// Proxy endpoint to get leads from Neon PostgreSQL via Python
-app.get('/api/leads', (req, res) => {
-  const tenantId = req.query.tenant_id || 'shazusoft';
-  const limit = req.query.limit || 50;
+// Generic Auth Proxy Helper
+function proxyToPython(req, res, targetPath, method, logAction = null) {
+  const payload = ['POST', 'PUT', 'PATCH'].includes(method) ? JSON.stringify(req.body || {}) : null;
   const url = new URL(PYTHON_WEBHOOK_URL);
+  const headers = {
+    'Connection': 'close'
+  };
+
+  if (req.headers.authorization) {
+    headers['Authorization'] = req.headers.authorization;
+  }
+
+  if (payload) {
+    headers['Content-Type'] = 'application/json';
+    headers['Content-Length'] = Buffer.byteLength(payload);
+  }
+
   const options = {
     hostname: url.hostname,
     port: url.port,
-    path: `/api/leads?tenant_id=${encodeURIComponent(tenantId)}&limit=${encodeURIComponent(limit)}`,
-    method: 'GET'
+    path: targetPath,
+    method: method,
+    headers: headers
   };
 
   const pyReq = http.request(options, (pyRes) => {
@@ -285,77 +298,56 @@ app.get('/api/leads', (req, res) => {
     pyRes.on('data', (chunk) => { responseData += chunk; });
     pyRes.on('end', () => {
       try {
-        res.json(JSON.parse(responseData));
+        const json = JSON.parse(responseData);
+        if (logAction) addLog('AUTH', `${logAction}: ${pyRes.statusCode}`);
+        res.status(pyRes.statusCode || 200).json(json);
       } catch (e) {
-        res.status(500).json({ error: 'Failed parsing leads data' });
+        res.status(pyRes.statusCode || 500).send(responseData);
       }
     });
   });
 
   pyReq.on('error', (err) => {
-    res.status(500).json({ error: 'Failed fetching leads: ' + err.message });
+    res.status(500).json({ error: 'Backend unreachable: ' + err.message });
   });
 
+  if (payload) pyReq.write(payload);
   pyReq.end();
+}
+
+// Auth API Routes
+app.post('/api/auth/register', (req, res) => {
+  proxyToPython(req, res, '/api/auth/register', 'POST', 'User Registered');
+});
+
+app.post('/api/auth/login', (req, res) => {
+  proxyToPython(req, res, '/api/auth/login', 'POST', 'User Logged In');
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  proxyToPython(req, res, '/api/auth/logout', 'POST', 'User Logged Out');
+});
+
+app.get('/api/auth/me', (req, res) => {
+  proxyToPython(req, res, '/api/auth/me', 'GET');
+});
+
+// Proxy endpoint to get leads from Neon PostgreSQL via Python
+app.get('/api/leads', (req, res) => {
+  const tenantId = req.query.tenant_id || 'shazusoft';
+  const limit = req.query.limit || 50;
+  proxyToPython(req, res, `/api/leads?tenant_id=${encodeURIComponent(tenantId)}&limit=${encodeURIComponent(limit)}`, 'GET');
 });
 
 // Proxy endpoint to get system stats from Neon PostgreSQL via Python
 app.get('/api/stats', (req, res) => {
   const tenantId = req.query.tenant_id || 'shazusoft';
-  const url = new URL(PYTHON_WEBHOOK_URL);
-  const options = {
-    hostname: url.hostname,
-    port: url.port,
-    path: `/api/stats?tenant_id=${encodeURIComponent(tenantId)}`,
-    method: 'GET'
-  };
-
-  const pyReq = http.request(options, (pyRes) => {
-    let responseData = '';
-    pyRes.on('data', (chunk) => { responseData += chunk; });
-    pyRes.on('end', () => {
-      try {
-        res.json(JSON.parse(responseData));
-      } catch (e) {
-        res.status(500).json({ error: 'Failed parsing stats data' });
-      }
-    });
-  });
-
-  pyReq.on('error', (err) => {
-    res.status(500).json({ error: 'Failed fetching stats: ' + err.message });
-  });
-
-  pyReq.end();
+  proxyToPython(req, res, `/api/stats?tenant_id=${encodeURIComponent(tenantId)}`, 'GET');
 });
 
 // Proxy endpoint to get all registered tenants
 app.get('/api/tenants', (req, res) => {
-  const url = new URL(PYTHON_WEBHOOK_URL);
-  const options = {
-    hostname: url.hostname,
-    port: url.port,
-    path: '/api/tenants',
-    method: 'GET'
-  };
-
-  const pyReq = http.request(options, (pyRes) => {
-    let responseData = '';
-    pyRes.on('data', (chunk) => { responseData += chunk; });
-    pyRes.on('end', () => {
-      try {
-        res.json(JSON.parse(responseData));
-      } catch (e) {
-        res.status(500).json({ error: 'Failed parsing tenants' });
-      }
-    });
-  });
-
-  pyReq.on('error', (err) => {
-    res.status(500).json({ error: 'Failed fetching tenants: ' + err.message });
-  });
-
-  pyReq.end();
+  proxyToPython(req, res, '/api/tenants', 'GET');
 });
 
 // Proxy endpoint to create/register a new tenant

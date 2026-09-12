@@ -29,13 +29,26 @@ import time
 
 class WebhookHandler(BaseHTTPRequestHandler):
     def _send_json(self, status_code, payload):
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
+
+    def _get_session(self):
+        auth_header = self.headers.get("Authorization", "")
+        token = ""
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+        if not token:
+            parsed = urlparse(self.path)
+            query = parse_qs(parsed.query)
+            token = query.get("token", [""])[0]
+        if token:
+            return db.verify_session(token)
+        return None
 
     def do_POST(self):
         parsed = urlparse(self.path)
@@ -48,12 +61,66 @@ class WebhookHandler(BaseHTTPRequestHandler):
         except Exception:
             data = {}
 
-        if path in ("/webhook", "/api/test-chat", "/api/simulate"):
+        # 1. Auth: Register
+        if path == "/api/auth/register":
+            business_name = (data.get("business_name") or data.get("name") or "").strip()
+            owner_name = (data.get("owner_name") or data.get("name") or "").strip()
+            email = (data.get("email") or "").strip()
+            password = data.get("password") or ""
+            phone = data.get("phone") or ""
+            category = data.get("category") or "General Business"
+            knowledge_base = data.get("knowledge_base") or f"24/7 AI Business Agent for {business_name}."
+
+            if not business_name or not email or not password:
+                return self._send_json(400, {"error": "Business name, email, and password are required"})
+
+            res = db.create_user_with_tenant(
+                business_name=business_name,
+                owner_name=owner_name,
+                email=email,
+                password=password,
+                phone=phone,
+                category=category,
+                knowledge_base=knowledge_base
+            )
+            status_code = 201 if res.get("success") else 400
+            return self._send_json(status_code, res)
+
+        # 2. Auth: Login
+        elif path == "/api/auth/login":
+            email = (data.get("email") or "").strip()
+            password = data.get("password") or ""
+
+            if not email or not password:
+                return self._send_json(400, {"error": "Email and password are required"})
+
+            res = db.authenticate_user(email, password)
+            status_code = 200 if res.get("success") else 401
+            return self._send_json(status_code, res)
+
+        # 3. Auth: Logout
+        elif path == "/api/auth/logout":
+            token = ""
+            auth_header = self.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:].strip()
+            if not token:
+                token = data.get("token") or ""
+            if token:
+                db.delete_session(token)
+            return self._send_json(200, {"success": True, "message": "Logged out successfully"})
+
+        elif path in ("/webhook", "/api/test-chat", "/api/simulate"):
             try:
                 phone = data.get("phone", "")
                 name = data.get("name", "Client")
                 message = data.get("message", "")
                 tenant_id = data.get("tenant_id") or "shazusoft"
+
+                # If user is authenticated as client, lock tenant_id to user's tenant
+                session = self._get_session()
+                if session and session.get("role") != "admin":
+                    tenant_id = session.get("tenant_id") or tenant_id
 
                 print(f"[WEBHOOK] Received for tenant '{tenant_id}' from {phone} ({name}): '{message}'")
 
@@ -101,6 +168,10 @@ class WebhookHandler(BaseHTTPRequestHandler):
         elif path == "/api/tenants/knowledge":
             try:
                 tenant_id = data.get("tenant_id") or "shazusoft"
+                session = self._get_session()
+                if session and session.get("role") != "admin":
+                    tenant_id = session.get("tenant_id")
+
                 knowledge_base = data.get("knowledge_base", "")
                 success = db.update_tenant_knowledge(tenant_id, knowledge_base)
                 if success:
@@ -121,6 +192,10 @@ class WebhookHandler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(post_data.decode("utf-8")) if post_data else {}
                 tenant_id = data.get("tenant_id") or "shazusoft"
+                session = self._get_session()
+                if session and session.get("role") != "admin":
+                    tenant_id = session.get("tenant_id")
+
                 knowledge_base = data.get("knowledge_base", "")
                 success = db.update_tenant_knowledge(tenant_id, knowledge_base)
                 if success:
@@ -137,11 +212,29 @@ class WebhookHandler(BaseHTTPRequestHandler):
         path = parsed.path
         query = parse_qs(parsed.query)
 
-        tenant_id = query.get("tenant_id", ["shazusoft"])[0]
+        session = self._get_session()
+
+        # Auth Me endpoint
+        if path == "/api/auth/me":
+            if session:
+                return self._send_json(200, {"authenticated": True, "user": session})
+            else:
+                return self._send_json(401, {"authenticated": False, "error": "Not authenticated"})
+
+        # Resolve tenant_id with strict isolation
+        if session and session.get("role") != "admin":
+            tenant_id = session.get("tenant_id")
+        else:
+            tenant_id = query.get("tenant_id", ["shazusoft"])[0]
 
         if path == "/api/tenants":
-            tenants = db.get_all_tenants()
-            self._send_json(200, tenants)
+            # If regular client, only show their own business; if admin, show all
+            if session and session.get("role") != "admin":
+                own_tenant = db.get_tenant(session.get("tenant_id"))
+                self._send_json(200, [own_tenant] if own_tenant else [])
+            else:
+                tenants = db.get_all_tenants()
+                self._send_json(200, tenants)
 
         elif path == "/api/tenants/details":
             tenant = db.get_tenant(tenant_id)

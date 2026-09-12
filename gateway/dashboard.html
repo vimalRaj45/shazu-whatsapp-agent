@@ -74,25 +74,31 @@
         </div>
       </div>
 
-      <!-- Center / Controls: Workspace Selector & Create Agent Button -->
+      <!-- Center / Controls: Workspace Selector & User Account -->
       <div class="flex items-center gap-2 sm:gap-3">
-        <!-- Tenant Switcher Dropdown -->
-        <div class="flex items-center gap-1.5 bg-slate-100/90 hover:bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 transition-colors">
-          <i class="bi bi-building text-slate-500 text-xs"></i>
+        <!-- User Account Badge (Populated after login) -->
+        <div id="userBadgeContainer" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800">
+          <i class="bi bi-person-circle text-brand-600"></i>
+          <span id="userNameDisplay">My Business</span>
+        </div>
+
+        <!-- Admin-Only Tenant Switcher Dropdown -->
+        <div id="adminTenantWrapper" class="hidden flex items-center gap-1.5 bg-slate-100/90 hover:bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 transition-colors">
+          <i class="bi bi-shield-lock-fill text-amber-600 text-xs"></i>
           <select id="tenantSelect" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer pr-2">
-            <option value="shazusoft">Shazu Soft Technologies (Default)</option>
+            <option value="shazusoft">Shazu Soft Technologies (Admin)</option>
           </select>
         </div>
 
         <!-- Create Free AI Agent Button -->
-        <button onclick="openNewTenantModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm shadow-brand-600/20 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+        <button onclick="openAuthModal('register')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm shadow-brand-600/20 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/20">
           <i class="bi bi-plus-circle-fill"></i>
           <span class="hidden md:inline">Create Free AI Agent</span>
-          <span class="md:hidden">New Agent</span>
+          <span class="md:hidden">New</span>
         </button>
 
         <!-- Official Shazu Soft Website Link -->
-        <a href="https://shazusofttechnologies.org/software" target="_blank" rel="noopener noreferrer" class="hidden lg:inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold transition-colors" title="Visit Shazu Soft Official Website">
+        <a href="https://shazusofttechnologies.org/software" target="_blank" rel="noopener noreferrer" class="hidden xl:inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold transition-colors" title="Visit Shazu Soft Official Website">
           <i class="bi bi-globe2 text-brand-600"></i>
           <span>Official Site</span>
           <i class="bi bi-box-arrow-up-right text-[10px] text-slate-400 ml-0.5"></i>
@@ -109,6 +115,12 @@
         <button id="btnDisconnect" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition-colors" title="Unlink WhatsApp session and scan new QR">
           <i class="bi bi-power text-rose-600"></i>
           <span class="hidden sm:inline">Unlink</span>
+        </button>
+
+        <!-- Sign In / Sign Out Button -->
+        <button id="btnAuthAction" onclick="handleAuthAction()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition-colors shadow-sm">
+          <i id="authIcon" class="bi bi-box-arrow-in-right"></i>
+          <span id="authText">Sign In</span>
         </button>
       </div>
     </div>
@@ -346,74 +358,136 @@
 
   </main>
 
-  <!-- Modal: Create Free AI Agent (Self-Service Onboarding) -->
-  <div id="newTenantModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+  <!-- Unified Auth Modal (Sign In & Sign Up) -->
+  <div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm hidden p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
+      
+      <!-- Modal Header with Tabs -->
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-base">
-            <i class="bi bi-robot"></i>
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 text-white flex items-center justify-center font-bold text-base shadow-sm">
+            <i class="bi bi-shield-lock-fill"></i>
           </div>
           <div>
-            <h3 class="text-base font-bold text-slate-900">Create Free AI Agent</h3>
-            <p class="text-xs text-slate-500">Self-serve registration for your business</p>
+            <h3 id="authModalTitle" class="text-base font-bold text-slate-900">Sign In to Your Workspace</h3>
+            <p class="text-xs text-slate-500">24/7 WhatsApp AI Business Platform</p>
           </div>
         </div>
-        <button onclick="closeNewTenantModal()" class="text-slate-400 hover:text-slate-600 text-lg p-1 rounded-lg hover:bg-slate-100 transition-colors">
+        <button id="authModalCloseBtn" onclick="closeAuthModal()" class="text-slate-400 hover:text-slate-600 text-lg p-1 rounded-lg hover:bg-slate-100 transition-colors hidden">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
 
-      <form id="newTenantForm" onsubmit="submitNewTenant(event)" class="space-y-3.5">
+      <!-- Tab Switcher -->
+      <div class="flex p-1 bg-slate-100 rounded-xl text-xs font-bold">
+        <button id="tabAuthLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm transition-all text-center">
+          Sign In
+        </button>
+        <button id="tabAuthRegister" onclick="switchAuthTab('register')" class="flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-900 transition-all text-center">
+          Create Free Account
+        </button>
+      </div>
+
+      <!-- FORM 1: Sign In Form -->
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Email Address *</label>
+          <input type="email" id="loginEmail" required placeholder="you@company.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password *</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
+        </div>
+
+        <div id="loginError" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-xs p-2.5 rounded-xl font-medium"></div>
+
+        <button type="submit" id="btnLoginSubmit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm shadow-brand-600/20 transition-all flex items-center justify-center gap-1.5">
+          <i class="bi bi-box-arrow-in-right"></i>
+          <span>Sign In to Workspace</span>
+        </button>
+
+        <div class="text-center pt-1 text-xs text-slate-500">
+          Don't have an account? 
+          <a href="javascript:void(0)" onclick="switchAuthTab('register')" class="text-brand-600 font-bold hover:underline">Create Free Business Account</a>
+        </div>
+
+        <!-- Hint Card for Demo Admin -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[11px] text-slate-500 flex items-start gap-2">
+          <i class="bi bi-info-circle text-slate-400 mt-0.5"></i>
+          <div>
+            <strong>Superadmin Demo:</strong> <code>admin@shazusoft.com</code> / <code>ShazuSoft@2026</code>
+          </div>
+        </div>
+      </form>
+
+      <!-- FORM 2: Create Free Account Form (Registration) -->
+      <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-3 hidden">
         <div>
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Business / Company Name *</label>
-          <input type="text" id="tenantName" required placeholder="e.g. Apex Multispeciality Hospital" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
+          <input type="text" id="regBusinessName" required placeholder="e.g. Salem Multispeciality Clinic" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">WhatsApp Phone *</label>
-            <input type="text" id="tenantPhone" required placeholder="e.g. +91 98765 43210" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Your Full Name *</label>
+            <input type="text" id="regOwnerName" required placeholder="e.g. Dr. Rajesh Kumar" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Industry / Category</label>
-            <select id="tenantCategory" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white">
-              <option value="Healthcare & Clinic">🏥 Healthcare & Clinic</option>
-              <option value="Retail & E-Commerce">🛒 Retail & E-Commerce</option>
-              <option value="Real Estate & Property">🏢 Real Estate & Property</option>
-              <option value="Restaurant & Cafe">🍔 Restaurant & Cafe</option>
-              <option value="Software & IT Services">💻 Software & IT Services</option>
-              <option value="Education & Coaching">🎓 Education & Coaching</option>
-              <option value="Services & Consultancy">💼 Services & Consultancy</option>
-            </select>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">WhatsApp Phone *</label>
+            <input type="text" id="regPhone" required placeholder="+91 98765 43210" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Email Address *</label>
+            <input type="email" id="regEmail" required placeholder="doctor@clinic.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Create Password *</label>
+            <input type="password" id="regPassword" required minlength="6" placeholder="Min 6 characters" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10" />
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Custom Knowledge Base & Offerings *
-          </label>
-          <p class="text-[11px] text-slate-500 mb-1">What timings, services, pricing, or FAQs should your AI know?</p>
-          <textarea id="tenantKnowledge" rows="3" required placeholder="e.g. Working Hours: 9 AM - 8 PM. Doctor consultation: ₹300. Services: Dental cleaning, root canal, braces. Emergency contact: +91 9876543210." class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10"></textarea>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Industry / Category</label>
+          <select id="regCategory" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white">
+            <option value="Healthcare & Clinic">🏥 Healthcare & Clinic</option>
+            <option value="Retail & E-Commerce">🛒 Retail & E-Commerce</option>
+            <option value="Real Estate & Property">🏢 Real Estate & Property</option>
+            <option value="Restaurant & Cafe">🍔 Restaurant & Cafe</option>
+            <option value="Software & IT Services">💻 Software & IT Services</option>
+            <option value="Education & Coaching">🎓 Education & Coaching</option>
+            <option value="Services & Consultancy">💼 Services & Consultancy</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Business Knowledge & Pricing *</label>
+          <textarea id="regKnowledge" rows="3" required placeholder="e.g. Timings: 9 AM - 8 PM. Doctor consultation: ₹300. Services: Dental implants, root canal. Address: Salem Main Road." class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white focus:ring-2 focus:ring-brand-500/10"></textarea>
         </div>
 
         <div class="bg-brand-50/80 border border-brand-200/80 rounded-xl p-2.5 text-[11px] text-brand-800 flex items-start gap-2">
           <i class="bi bi-info-circle-fill text-brand-600 mt-0.5"></i>
           <div>
-            <strong>100% Free Beta:</strong> All bot replies will end with:
-            <br>
-            <span class="font-mono text-[10px] text-brand-900 bg-white/80 px-1 py-0.5 rounded">🤖 Powered by Shazu Soft AI — https://shazusofttechnologies.org/software</span>
+            <strong>100% Free Beta Launch:</strong> Free unlimited cloud hosting & Mistral AI replies with Shazu Soft viral branding.
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-          <button type="button" onclick="closeNewTenantModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
-          <button type="submit" id="btnSubmitTenant" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm shadow-brand-600/20 transition-all flex items-center gap-1.5">
-            <i class="bi bi-lightning-charge-fill"></i>
-            <span>Activate Free AI Agent</span>
-          </button>
+        <div id="registerError" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-xs p-2.5 rounded-xl font-medium"></div>
+
+        <button type="submit" id="btnRegisterSubmit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm shadow-brand-600/20 transition-all flex items-center justify-center gap-1.5">
+          <i class="bi bi-lightning-charge-fill"></i>
+          <span>Activate Free AI Agent</span>
+        </button>
+
+        <div class="text-center pt-1 text-xs text-slate-500">
+          Already have an account? 
+          <a href="javascript:void(0)" onclick="switchAuthTab('login')" class="text-brand-600 font-bold hover:underline">Sign In here</a>
         </div>
       </form>
+
     </div>
   </div>
 
@@ -438,8 +512,212 @@
   <script>
     const userPhone = "{{DISPLAY_PHONE}}";
     let currentTenantId = 'shazusoft';
+    let currentUser = null;
 
-    // Tab Switcher
+    function getAuthToken() {
+      return localStorage.getItem('shazu_auth_token') || '';
+    }
+
+    function getAuthHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getAuthToken();
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      return headers;
+    }
+
+    // Auth Tab Switcher
+    function switchAuthTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+      document.getElementById('registerForm').classList.toggle('hidden', isLogin);
+      document.getElementById('tabAuthLogin').className = isLogin 
+        ? 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm transition-all text-center'
+        : 'flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-900 transition-all text-center';
+      document.getElementById('tabAuthRegister').className = !isLogin 
+        ? 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm transition-all text-center'
+        : 'flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-900 transition-all text-center';
+      document.getElementById('authModalTitle').innerText = isLogin ? 'Sign In to Your Workspace' : 'Create Free AI Agent';
+      document.getElementById('loginError').classList.add('hidden');
+      document.getElementById('registerError').classList.add('hidden');
+    }
+
+    function openAuthModal(tab = 'login') {
+      switchAuthTab(tab);
+      document.getElementById('authModalCloseBtn').classList.toggle('hidden', !currentUser);
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+
+    function closeAuthModal() {
+      if (currentUser) {
+        document.getElementById('authModal').classList.add('hidden');
+      }
+    }
+
+    function handleAuthAction() {
+      if (currentUser) {
+        signOut();
+      } else {
+        openAuthModal('login');
+      }
+    }
+
+    // Check Session on Page Load
+    async function checkAuth() {
+      const token = getAuthToken();
+      if (!token) {
+        currentUser = null;
+        updateAuthUI(null);
+        openAuthModal('login');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (res.ok && data.authenticated) {
+          currentUser = data.user;
+          updateAuthUI(currentUser);
+          closeAuthModal();
+          fetchStats();
+          fetchLeads();
+          if (currentUser.role === 'admin') fetchTenants();
+        } else {
+          localStorage.removeItem('shazu_auth_token');
+          currentUser = null;
+          updateAuthUI(null);
+          openAuthModal('login');
+        }
+      } catch (err) {
+        openAuthModal('login');
+      }
+    }
+
+    function updateAuthUI(user) {
+      const badge = document.getElementById('userBadgeContainer');
+      const nameSpan = document.getElementById('userNameDisplay');
+      const adminWrapper = document.getElementById('adminTenantWrapper');
+      const authIcon = document.getElementById('authIcon');
+      const authText = document.getElementById('authText');
+
+      if (user) {
+        badge.classList.remove('hidden');
+        nameSpan.innerText = `${user.user_name || user.name} (${user.business_name || user.category || 'Workspace'})`;
+        authIcon.className = 'bi bi-box-arrow-right';
+        authText.innerText = 'Sign Out';
+
+        if (user.role === 'admin') {
+          adminWrapper.classList.remove('hidden');
+          currentTenantId = user.tenant_id || 'shazusoft';
+        } else {
+          adminWrapper.classList.add('hidden');
+          currentTenantId = user.tenant_id;
+        }
+      } else {
+        badge.classList.add('hidden');
+        adminWrapper.classList.add('hidden');
+        authIcon.className = 'bi bi-box-arrow-in-right';
+        authText.innerText = 'Sign In';
+      }
+    }
+
+    // Handle Login Submit
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('btnLoginSubmit');
+      const errBox = document.getElementById('loginError');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Signing in...';
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success && data.token) {
+          localStorage.setItem('shazu_auth_token', data.token);
+          document.getElementById('loginForm').reset();
+          await checkAuth();
+        } else {
+          errBox.innerText = data.error || 'Invalid credentials';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.innerText = 'Network error: ' + err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i><span>Sign In to Workspace</span>';
+      }
+    }
+
+    // Handle Register Submit
+    async function handleRegister(e) {
+      e.preventDefault();
+      const business_name = document.getElementById('regBusinessName').value.trim();
+      const owner_name = document.getElementById('regOwnerName').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const category = document.getElementById('regCategory').value;
+      const knowledge_base = document.getElementById('regKnowledge').value.trim();
+      const btn = document.getElementById('btnRegisterSubmit');
+      const errBox = document.getElementById('registerError');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Creating account...';
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ business_name, owner_name, phone, email, password, category, knowledge_base })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success && data.token) {
+          localStorage.setItem('shazu_auth_token', data.token);
+          document.getElementById('registerForm').reset();
+          alert(`🎉 Welcome ${owner_name}! Your 24/7 AI Business Agent for "${business_name}" is active!`);
+          await checkAuth();
+        } else {
+          errBox.innerText = data.error || 'Registration failed';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.innerText = 'Network error: ' + err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-lightning-charge-fill"></i><span>Activate Free AI Agent</span>';
+      }
+    }
+
+    // Sign Out
+    async function signOut() {
+      if (!confirm("Are you sure you want to sign out of your workspace?")) return;
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+      } catch(e) {}
+      localStorage.removeItem('shazu_auth_token');
+      currentUser = null;
+      updateAuthUI(null);
+      openAuthModal('login');
+    }
+
+    // Tab Switcher for Main Page
     function switchTab(tab) {
       const tabs = ['simulator', 'leads', 'logs', 'guide'];
       tabs.forEach(t => {
@@ -463,10 +741,10 @@
       sendWebTest();
     }
 
-    // Tenant Selection & Management
+    // Admin Tenant Switcher
     async function fetchTenants() {
       try {
-        const res = await fetch('/api/tenants');
+        const res = await fetch('/api/tenants', { headers: getAuthHeaders() });
         const tenants = await res.json();
         const select = document.getElementById('tenantSelect');
         if (tenants && tenants.length > 0) {
@@ -485,53 +763,6 @@
       currentTenantId = e.target.value;
       fetchStats();
       fetchLeads();
-    }
-
-    function openNewTenantModal() {
-      document.getElementById('newTenantModal').classList.remove('hidden');
-    }
-
-    function closeNewTenantModal() {
-      document.getElementById('newTenantModal').classList.add('hidden');
-    }
-
-    async function submitNewTenant(event) {
-      event.preventDefault();
-      const btn = document.getElementById('btnSubmitTenant');
-      btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Activating...';
-      btn.disabled = true;
-
-      const name = document.getElementById('tenantName').value.trim();
-      const phone = document.getElementById('tenantPhone').value.trim();
-      const category = document.getElementById('tenantCategory').value;
-      const knowledge_base = document.getElementById('tenantKnowledge').value.trim();
-
-      try {
-        const res = await fetch('/api/tenants', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone, category, knowledge_base })
-        });
-        const data = await res.json();
-
-        if (res.ok && data.success) {
-          currentTenantId = data.tenant.id;
-          await fetchTenants();
-          document.getElementById('tenantSelect').value = currentTenantId;
-          closeNewTenantModal();
-          document.getElementById('newTenantForm').reset();
-          alert(`🎉 Success! Your 24/7 AI Agent for "${name}" is active.\n\nYou can now test it in the Simulator or pair your WhatsApp!`);
-          fetchStats();
-          fetchLeads();
-        } else {
-          alert('Failed to register AI Agent: ' + (data.error || 'Unknown error'));
-        }
-      } catch (err) {
-        alert('Error: ' + err.message);
-      } finally {
-        btn.innerHTML = '<i class="bi bi-lightning-charge-fill mr-1"></i> Activate Free AI Agent';
-        btn.disabled = false;
-      }
     }
 
     // Web Simulator API Call
@@ -553,10 +784,10 @@
       try {
         const res = await fetch('/api/test-chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             message: text,
-            name: 'Web Simulator User',
+            name: currentUser ? currentUser.name : 'Web Tester',
             phone: userPhone,
             tenant_id: currentTenantId
           })
@@ -578,7 +809,9 @@
     // Fetch Stats from Neon PostgreSQL
     async function fetchStats() {
       try {
-        const res = await fetch(`/api/stats?tenant_id=${encodeURIComponent(currentTenantId)}`);
+        const res = await fetch(`/api/stats?tenant_id=${encodeURIComponent(currentTenantId)}`, {
+          headers: getAuthHeaders()
+        });
         const data = await res.json();
         document.getElementById('statTotalLeads').innerText = data.total_leads || 0;
         document.getElementById('statTotalMessages').innerText = data.total_messages || 0;
@@ -590,7 +823,9 @@
     // Fetch Leads from Neon PostgreSQL
     async function fetchLeads() {
       try {
-        const res = await fetch(`/api/leads?tenant_id=${encodeURIComponent(currentTenantId)}`);
+        const res = await fetch(`/api/leads?tenant_id=${encodeURIComponent(currentTenantId)}`, {
+          headers: getAuthHeaders()
+        });
         const leads = await res.json();
         const tbody = document.getElementById('leadsTableBody');
         
@@ -619,7 +854,7 @@
             `;
           }).join('');
         } else {
-          tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No leads recorded in Neon DB for this business yet. Send a WhatsApp message to populate!</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No leads recorded in Neon DB for this workspace yet. Send a WhatsApp message to populate!</td></tr>';
         }
       } catch (e) {
         document.getElementById('leadsTableBody').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-rose-500">Failed to fetch leads from database.</td></tr>';
@@ -629,7 +864,7 @@
     // Fetch Live Traffic Logs
     async function fetchLogs() {
       try {
-        const res = await fetch('/api/logs');
+        const res = await fetch('/api/logs', { headers: getAuthHeaders() });
         const data = await res.json();
         const box = document.getElementById('logsBox');
         if (data.logs && data.logs.length > 0) {
@@ -639,6 +874,7 @@
             if (l.type === 'AI-REPLY' || l.type === 'DELIVERED') color = 'text-emerald-400 font-bold';
             if (l.type === 'SELF-TEST') color = 'text-amber-300 font-bold';
             if (l.type === 'HUMAN') color = 'text-purple-300 font-bold';
+            if (l.type === 'AUTH') color = 'text-indigo-400 font-bold';
             if (l.type === 'ERROR') color = 'text-rose-400 font-bold';
 
             return `
@@ -663,7 +899,7 @@
       btn.disabled = true;
 
       try {
-        const res = await fetch('/api/disconnect', { method: 'POST' });
+        const res = await fetch('/api/disconnect', { method: 'POST', headers: getAuthHeaders() });
         const data = await res.json();
         alert(data.message || 'WhatsApp session disconnected.');
         setTimeout(() => location.reload(), 1500);
@@ -696,11 +932,11 @@
         }
       });
 
-      fetchTenants();
-      fetchStats();
-      fetchLeads();
+      checkAuth();
       fetchLogs();
-      setInterval(fetchStats, 5000);
+      setInterval(() => {
+        if (currentUser) fetchStats();
+      }, 5000);
       setInterval(fetchLogs, 2000);
     });
   </script>
