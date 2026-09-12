@@ -270,11 +270,13 @@ app.get('/api/logs', (req, res) => {
 
 // Proxy endpoint to get leads from Neon PostgreSQL via Python
 app.get('/api/leads', (req, res) => {
+  const tenantId = req.query.tenant_id || 'shazusoft';
+  const limit = req.query.limit || 50;
   const url = new URL(PYTHON_WEBHOOK_URL);
   const options = {
     hostname: url.hostname,
     port: url.port,
-    path: '/api/leads',
+    path: `/api/leads?tenant_id=${encodeURIComponent(tenantId)}&limit=${encodeURIComponent(limit)}`,
     method: 'GET'
   };
 
@@ -299,11 +301,12 @@ app.get('/api/leads', (req, res) => {
 
 // Proxy endpoint to get system stats from Neon PostgreSQL via Python
 app.get('/api/stats', (req, res) => {
+  const tenantId = req.query.tenant_id || 'shazusoft';
   const url = new URL(PYTHON_WEBHOOK_URL);
   const options = {
     hostname: url.hostname,
     port: url.port,
-    path: '/api/stats',
+    path: `/api/stats?tenant_id=${encodeURIComponent(tenantId)}`,
     method: 'GET'
   };
 
@@ -323,6 +326,73 @@ app.get('/api/stats', (req, res) => {
     res.status(500).json({ error: 'Failed fetching stats: ' + err.message });
   });
 
+  pyReq.end();
+});
+
+// Proxy endpoint to get all registered tenants
+app.get('/api/tenants', (req, res) => {
+  const url = new URL(PYTHON_WEBHOOK_URL);
+  const options = {
+    hostname: url.hostname,
+    port: url.port,
+    path: '/api/tenants',
+    method: 'GET'
+  };
+
+  const pyReq = http.request(options, (pyRes) => {
+    let responseData = '';
+    pyRes.on('data', (chunk) => { responseData += chunk; });
+    pyRes.on('end', () => {
+      try {
+        res.json(JSON.parse(responseData));
+      } catch (e) {
+        res.status(500).json({ error: 'Failed parsing tenants' });
+      }
+    });
+  });
+
+  pyReq.on('error', (err) => {
+    res.status(500).json({ error: 'Failed fetching tenants: ' + err.message });
+  });
+
+  pyReq.end();
+});
+
+// Proxy endpoint to create/register a new tenant
+app.post('/api/tenants', (req, res) => {
+  const payload = JSON.stringify(req.body);
+  const url = new URL(PYTHON_WEBHOOK_URL);
+  const options = {
+    hostname: url.hostname,
+    port: url.port,
+    path: '/api/tenants',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+      'Connection': 'close'
+    }
+  };
+
+  const pyReq = http.request(options, (pyRes) => {
+    let responseData = '';
+    pyRes.on('data', (chunk) => { responseData += chunk; });
+    pyRes.on('end', () => {
+      try {
+        const json = JSON.parse(responseData);
+        addLog('TENANT', `New business registered: "${req.body.name || ''}" (ID: ${json.tenant?.id || 'new'})`);
+        res.status(pyRes.statusCode || 200).json(json);
+      } catch (e) {
+        res.status(500).json({ error: 'Failed registering tenant' });
+      }
+    });
+  });
+
+  pyReq.on('error', (err) => {
+    res.status(500).json({ error: 'Could not contact Python backend: ' + err.message });
+  });
+
+  pyReq.write(payload);
   pyReq.end();
 });
 
@@ -363,11 +433,12 @@ app.post('/api/disconnect', async (req, res) => {
 
 // Endpoint to test AI Brain directly from browser UI
 app.post('/api/test-chat', (req, res) => {
-  const { message, name, phone } = req.body;
+  const { message, name, phone, tenant_id } = req.body;
   const payload = JSON.stringify({
     phone: phone || '919876543210',
     name: name || 'Test User',
-    message: message || 'Hi'
+    message: message || 'Hi',
+    tenant_id: tenant_id || 'shazusoft'
   });
 
   const url = new URL(PYTHON_WEBHOOK_URL);
@@ -389,7 +460,7 @@ app.post('/api/test-chat', (req, res) => {
     pyRes.on('end', () => {
       try {
         const json = JSON.parse(responseData);
-        addLog('TEST-CHAT', `Web tester sent: "${message}" -> Got response (${(json.reply || '').length} chars)`);
+        addLog('TEST-CHAT', `Web tester (${tenant_id || 'shazusoft'}) sent: "${message}" -> Got response (${(json.reply || '').length} chars)`);
         res.json(json);
       } catch (e) {
         res.status(500).json({ error: 'Failed to parse AI response' });

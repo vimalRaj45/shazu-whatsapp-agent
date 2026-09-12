@@ -34,10 +34,20 @@ def init_db():
                 id VARCHAR(64) PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 phone VARCHAR(50),
+                category VARCHAR(100) DEFAULT 'Software & AI',
+                knowledge_base TEXT,
                 custom_prompt TEXT,
+                website_url VARCHAR(255) DEFAULT 'https://shazusofttechnologies.org/software',
+                viral_footer_enabled BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
         """)
+
+        # Alter table in case it was created earlier without new columns
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'Software & AI';")
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS knowledge_base TEXT;")
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS website_url VARCHAR(255) DEFAULT 'https://shazusofttechnologies.org/software';")
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS viral_footer_enabled BOOLEAN DEFAULT TRUE;")
 
         # 2. WhatsApp Instances Table (Multiple Phone Connections)
         cur.execute("""
@@ -97,14 +107,20 @@ def init_db():
 
         # Seed Default Shazu Soft Tenant if it doesn't exist
         cur.execute("""
-            INSERT INTO tenants (id, name, phone, custom_prompt)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (id) DO NOTHING;
+            INSERT INTO tenants (id, name, phone, category, knowledge_base, custom_prompt, website_url, viral_footer_enabled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+                website_url = 'https://shazusofttechnologies.org/software',
+                name = EXCLUDED.name;
         """, (
             config.DEFAULT_TENANT_ID,
             config.COMPANY_NAME,
             config.FOUNDER_PHONE,
-            "Official AI Business Consultant for Shazu Soft Technologies."
+            "Custom Software & AI Solutions",
+            "Shazu Soft Technologies builds custom software, AI agents for business automation, and scalable SaaS platforms. Founder: Vimal Raj (+91 95003 66657, contact@shazusoft.com). Website: https://shazusofttechnologies.org/software",
+            "Official 24/7 AI Business Consultant for Shazu Soft Technologies.",
+            "https://shazusofttechnologies.org/software",
+            True
         ))
 
         # Seed Primary WhatsApp Instance
@@ -299,6 +315,113 @@ def get_stats(tenant_id: str = "shazusoft") -> Dict[str, Any]:
             "db_status": "offline",
             "provider": "Neon Cloud PostgreSQL"
         }
+    finally:
+        if conn:
+            conn.close()
+
+def create_tenant(tenant_id: str, name: str, phone: str, category: str, knowledge_base: str, website_url: str = "https://shazusofttechnologies.org/software") -> bool:
+    """Register a new business client on Shazu Soft Free Beta."""
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO tenants (id, name, phone, category, knowledge_base, custom_prompt, website_url, viral_footer_enabled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                phone = EXCLUDED.phone,
+                category = EXCLUDED.category,
+                knowledge_base = EXCLUDED.knowledge_base,
+                website_url = EXCLUDED.website_url;
+        """, (
+            tenant_id,
+            name,
+            phone,
+            category,
+            knowledge_base,
+            f"Official 24/7 AI Business Consultant for {name}.",
+            website_url
+        ))
+
+        # Register default instance
+        cur.execute("""
+            INSERT INTO whatsapp_instances (id, tenant_id, phone, status)
+            VALUES (%s, %s, %s, 'initializing')
+            ON CONFLICT (id) DO NOTHING;
+        """, (f"inst_{tenant_id}", tenant_id, phone))
+
+        conn.commit()
+        cur.close()
+        return True
+    except Exception as e:
+        print(f"[DATABASE ERROR] Failed creating tenant: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def get_tenant(tenant_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve tenant details and custom knowledge base."""
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT id, name, phone, category, knowledge_base, custom_prompt, website_url, viral_footer_enabled
+            FROM tenants
+            WHERE id = %s;
+        """, (tenant_id,))
+        row = cur.fetchone()
+        cur.close()
+        return dict(row) if row else None
+    except Exception as e:
+        print(f"[DATABASE ERROR] Failed fetching tenant: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def update_tenant_knowledge(tenant_id: str, knowledge_base: str) -> bool:
+    """Update a business client's knowledge base."""
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE tenants
+            SET knowledge_base = %s
+            WHERE id = %s;
+        """, (knowledge_base, tenant_id))
+        conn.commit()
+        cur.close()
+        return True
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def get_all_tenants() -> List[Dict[str, Any]]:
+    """Fetch all registered business clients."""
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT id, name, phone, category, website_url, TO_CHAR(created_at, 'YYYY-MM-DD') as created_date
+            FROM tenants
+            ORDER BY created_at DESC;
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return []
     finally:
         if conn:
             conn.close()

@@ -14,7 +14,7 @@ if hasattr(sys.stderr, "reconfigure"):
 import json
 import time
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import urllib.request
 import urllib.error
 
@@ -30,31 +30,49 @@ CONVERSATION_MEMORY: Dict[str, List[Dict[str, str]]] = {}
 # Human takeover mute tracker: { phone_number: mute_until_timestamp }
 HUMAN_TAKEOVER_MUTES: Dict[str, float] = {}
 
-SYSTEM_PROMPT = """You are the official 24/7 Senior AI Technical Consultant for Shazu Soft Technologies (Salem, Tamil Nadu).
-Our Founder & Tech Lead is Vimal Raj (Phone: +91 95003 66657, Email: contact@shazusoft.com, Website: software.html).
+OFFICIAL_SHAZU_WEBSITE = "https://shazusofttechnologies.org/software"
+VIRAL_FOOTER = f"\n\n🤖 Powered by Shazu Soft AI — {OFFICIAL_SHAZU_WEBSITE}"
 
-YOUR MISSION:
-Help prospective clients, business owners, and founders who message us on WhatsApp understand how Shazu Soft can build their software or automate their operations. Be helpful, concise, friendly, and consultative. Never write walls of text—keep WhatsApp responses under 3-4 short paragraphs or punchy bullet points.
-
-SHAZU SOFT'S 3 CORE PILLARS (Everything we do fits into these 3):
+def build_tenant_system_prompt(tenant: Optional[Dict[str, Any]]) -> str:
+    """Dynamically formulate system prompt from tenant's custom knowledge in Neon DB."""
+    if not tenant or tenant.get("id") == "shazusoft":
+        biz_name = "Shazu Soft Technologies"
+        category = "Custom Software Engineering & AI Agents"
+        site_url = OFFICIAL_SHAZU_WEBSITE
+        knowledge = """SHAZU SOFT'S 3 CORE PILLARS (Everything we do fits into these 3):
 1. PILLAR 1: CUSTOM SOFTWARE ENGINEERING
    - Bespoke web apps (React, Next.js, Node.js, PostgreSQL), internal operations portals, ERPs, CRM systems, and cross-platform mobile apps (Flutter, iOS & Android).
    - 100% custom code ownership, no vendor lock-in. Replaces messy manual spreadsheets.
 
 2. PILLAR 2: AI AGENTS FOR BUSINESS AUTOMATION
    - 24/7 bilingual (Tamil & English) conversational WhatsApp & Web AI agents.
-   - Handles customer inquiries, qualifies leads, books appointments, and triggers Playwright/Cron background tasks without human staff intervention.
+   - Handles customer inquiries, qualifies leads, books appointments, and triggers automated background workflows without human staff intervention.
 
 3. PILLAR 3: SCALABLE SAAS PLATFORMS
-   - Multi-tenant cloud SaaS software built from scratch.
-   - Includes tenant data isolation, automated Stripe/Razorpay subscription billing engines, and self-service customer portals.
+   - Multi-tenant cloud SaaS software built from scratch with tenant data isolation and automated billing.
+
+Leadership: Founder & Tech Lead is Vimal Raj (Phone: +91 95003 66657, Email: contact@shazusoft.com)."""
+    else:
+        biz_name = tenant.get("name", "Our Business")
+        category = tenant.get("category", "Business Services")
+        site_url = tenant.get("website_url") or OFFICIAL_SHAZU_WEBSITE
+        knowledge = tenant.get("knowledge_base") or f"We provide professional {category} services. Contact us for custom quotes."
+
+    return f"""You are the official 24/7 Senior AI Technical Consultant for {biz_name}.
+Official Website: {site_url}
+
+YOUR MISSION:
+Help prospective clients, business owners, and customers who message us on WhatsApp understand how {biz_name} can help them. Be helpful, concise, friendly, and consultative. Never write walls of text—keep WhatsApp responses under 3-4 short paragraphs or punchy bullet points.
+
+BUSINESS PROFILE & KNOWLEDGE BASE:
+{knowledge}
 
 LANGUAGE & TONE RULES:
 - If the user writes in English, reply in crisp, professional, friendly English.
-- If the user writes in Tamil or Tanglish (e.g. "Vanakkam", "enaku oru clinic software venum", "pricing evlo bro", "epdi work aagum"), reply in natural, friendly, professional Tanglish/Tamil.
-- Ask 1 clarifying question at the end to understand their business type or feature requirements.
-- Invite them to schedule a free 15-minute scoping call with our engineering team or visit our live portfolio.
-- DO NOT make up random false prices. Mention that we deliver in transparent 2-week agile sprints and invite them for a quick quote based on their exact scope.
+- If the user writes in Tamil or Tanglish (e.g. "Vanakkam", "enaku software venum", "pricing evlo bro", "epdi work aagum"), reply in natural, friendly, professional Tanglish/Tamil.
+- Ask 1 clarifying question at the end to understand their exact requirements.
+- Invite them to visit our official website: {site_url}
+- DO NOT make up random false prices.
 """
 
 def call_mistral(messages: List[Dict[str, str]]) -> str:
@@ -102,14 +120,15 @@ def call_mistral(messages: List[Dict[str, str]]) -> str:
         "You can also reach our tech lead directly at +91 95003 66657."
     )
 
-def handle_incoming_message(sender_phone: str, sender_name: str, message_text: str) -> Optional[str]:
+def handle_incoming_message(sender_phone: str, sender_name: str, message_text: str, tenant_id: str = "shazusoft") -> Optional[str]:
     """
     Process incoming WhatsApp message:
     - Check Human Takeover commands (#stop, #start)
     - Check if muted
-    - Maintain conversation history
-    - Generate Mistral response
-    - Log lead to CRM
+    - Maintain conversation history from Neon DB
+    - Generate Mistral response with custom business prompt
+    - Append viral footer linking to https://shazusofttechnologies.org/software
+    - Log lead & messages to Neon PostgreSQL
     """
     clean_text = (message_text or "").strip()
     clean_phone = re.sub(r"[^0-9]", "", sender_phone)
@@ -119,12 +138,12 @@ def handle_incoming_message(sender_phone: str, sender_name: str, message_text: s
     lower_text = clean_text.lower()
     if lower_text in ["#stop", "#pause", "#mute", "#human"]:
         HUMAN_TAKEOVER_MUTES[clean_phone] = now + (24 * 3600)  # Mute for 24h
-        return "AI Agent paused for this chat for 24 hours. A human specialist from Shazu Soft will continue the conversation with you."
+        return "AI Agent paused for this chat for 24 hours. A human specialist will continue the conversation with you."
 
     if lower_text in ["#start", "#resume", "#unmute", "#ai"]:
         if clean_phone in HUMAN_TAKEOVER_MUTES:
             del HUMAN_TAKEOVER_MUTES[clean_phone]
-        return "AI Agent reactivated. How can Shazu Soft help your business today?"
+        return "AI Agent reactivated. How can we help your business today?"
 
     # Check if currently muted
     if clean_phone in HUMAN_TAKEOVER_MUTES:
@@ -135,7 +154,7 @@ def handle_incoming_message(sender_phone: str, sender_name: str, message_text: s
             del HUMAN_TAKEOVER_MUTES[clean_phone]
 
     # 2. Retrieve conversation history (from Neon DB or fallback memory)
-    history = db.get_chat_history(clean_phone, limit=8)
+    history = db.get_chat_history(clean_phone, tenant_id=tenant_id, limit=8)
     if not history and clean_phone in CONVERSATION_MEMORY:
         history = list(CONVERSATION_MEMORY[clean_phone])
     
@@ -144,13 +163,19 @@ def handle_incoming_message(sender_phone: str, sender_name: str, message_text: s
         history = history[-8:]
     CONVERSATION_MEMORY[clean_phone] = history
 
-    # 3. Build Mistral messages payload with system prompt
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    # 3. Retrieve tenant config & build dynamic system prompt
+    tenant = db.get_tenant(tenant_id)
+    system_prompt = build_tenant_system_prompt(tenant)
+    messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history)
 
     # 4. Generate AI response
-    print(f"[AI AGENT] Generating response for {clean_phone} ({sender_name}): '{clean_text}'")
+    print(f"[AI AGENT] Generating response for {clean_phone} ({sender_name}) [Tenant: {tenant_id}]: '{clean_text}'")
     ai_reply = call_mistral(messages)
+
+    # Append viral growth footer promoting Shazu Soft website
+    if not tenant or tenant.get("viral_footer_enabled", True):
+        ai_reply = f"{ai_reply}{VIRAL_FOOTER}"
 
     # 5. Save assistant response to memory & Neon PostgreSQL
     history.append({"role": "assistant", "content": ai_reply})
@@ -158,11 +183,12 @@ def handle_incoming_message(sender_phone: str, sender_name: str, message_text: s
 
     # Save conversation turns to Neon PostgreSQL
     chat_jid = f"{clean_phone}@s.whatsapp.net"
-    db.save_message(chat_jid, clean_phone, sender_name, "user", clean_text)
-    db.save_message(chat_jid, clean_phone, "Shazu AI Agent", "assistant", ai_reply)
+    assistant_name = (tenant.get("name") if tenant else "Shazu AI Agent")
+    db.save_message(chat_jid, clean_phone, sender_name, "user", clean_text, tenant_id=tenant_id)
+    db.save_message(chat_jid, clean_phone, assistant_name, "assistant", ai_reply, tenant_id=tenant_id)
 
     # 6. Save Lead to Neon PostgreSQL Cloud DB
-    db.save_lead(clean_phone, sender_name, clean_text, ai_reply)
+    db.save_lead(clean_phone, sender_name, clean_text, ai_reply, tenant_id=tenant_id)
 
     # 7. Also update local enriched_leads.json if present
     log_lead_to_crm(clean_phone, sender_name, clean_text, ai_reply)
